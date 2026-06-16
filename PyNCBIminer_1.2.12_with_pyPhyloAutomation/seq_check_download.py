@@ -27,6 +27,8 @@ def my_efetch(accession, strand, seq_start, seq_stop):
 
 
 def filter_duplicate_key(wd, file):
+    print(Path(wd) / Path(file))######
+    print(os.path.getsize(Path(wd) / Path(file)))######
     if os.path.getsize(Path(wd) / Path(file)) > 0:
         os.system("copy %s %s" % (str(Path(wd) / Path(file)), str(Path(wd) / Path("tmp_" + file))))
     key_list = []

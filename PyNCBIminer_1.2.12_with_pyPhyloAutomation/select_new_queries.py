@@ -16,6 +16,7 @@ from scipy.sparse import csr_matrix
 from Bio import SeqIO
 from tools import print_line, get_query_accession
 from seq_check_download import seq_check_download_main
+import shutil
 
 
 def cluster_queries(wd, ref_list=None):
@@ -457,9 +458,8 @@ def select_new_queries_main(wd, tmp_wd, key_annotations, exclude_sources, entrez
         print("Selected %d new queries." % new_quereis_num)
 
     if not os.path.exists(Path(wd) / Path("parameters") / Path("ref_seq") / Path("queries_%d.fasta" % blast_round)):
-        os.system("copy %s %s" % (Path(tmp_wd) / Path("new_queries.fasta"),
-                                  Path(wd) / Path("parameters") / Path("ref_seq") / Path(
-                                      "queries_%d.fasta" % blast_round)))
+        shutil.copy(str(Path(tmp_wd) / Path("new_queries.fasta")),
+                    str(Path(wd) / Path("parameters") / Path("ref_seq") / Path("queries_%d.fasta" % blast_round)))
 
     # extend hits After BLAST iteration.
     return new_quereis_num

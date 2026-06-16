@@ -14,6 +14,7 @@ from Bio import SeqIO
 import os
 import pandas as pd
 from tools import get_query_accession
+import shutil
 
 
 @func_set_timeout(600)
@@ -27,10 +28,8 @@ def my_efetch(accession, strand, seq_start, seq_stop):
 
 
 def filter_duplicate_key(wd, file):
-    print(Path(wd) / Path(file))######
-    print(os.path.getsize(Path(wd) / Path(file)))######
     if os.path.getsize(Path(wd) / Path(file)) > 0:
-        os.system("copy %s %s" % (str(Path(wd) / Path(file)), str(Path(wd) / Path("tmp_" + file))))
+        shutil.copy(str(Path(wd) / Path(file)), str(Path(wd) / Path("tmp_" + file)))
     key_list = []
     with open(Path(wd) / Path(file), "w") as fw:
         for record in SeqIO.parse(Path(wd) / Path("tmp_" + file), "fasta"):
@@ -40,7 +39,7 @@ def filter_duplicate_key(wd, file):
                 key_list.append(record.description)
             else:
                 print("Filtered duplicate sequence: %s" % record.description)
-    os.system("del %s" % str(Path(wd) / Path("tmp_" + file)))
+    os.remove(str(Path(wd) / Path("tmp_" + file)))
 
 
 def check_annotation(feature_list, key_annotations, exclude_sources):

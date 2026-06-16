@@ -31,6 +31,7 @@ if __name__ == "__main__":
 
     # Read the config file
     config = ConfigObj(args.config)
+    # TODO: Write the configspec file so that the config file can be validated
 
     # get today's date
     today = date.today().strftime('%Y-%m-%d')
@@ -40,20 +41,9 @@ if __name__ == "__main__":
 
     # Get working direcotry from config and create it if it doesn't exist
     working_directory = Path(config['DEFAULT']['working_directory'])
-    # Near verbatim from pyNCBIminer_00_main.py to create working directory paths
-    if not os.path.exists(Path(working_directory)):
-        os.makedirs(Path(working_directory))
-    if not os.path.exists(Path(working_directory) / Path("parameters")):
-        os.makedirs(Path(working_directory) / Path("parameters"))
-    if not os.path.exists(Path(working_directory) / Path("parameters") / Path("ref_seq")):
-        os.makedirs(Path(working_directory) / Path("parameters") / Path("ref_seq"))
-    if not os.path.exists(Path(working_directory) / Path("parameters") / Path("ref_msa")):
-        os.makedirs(Path(working_directory) / Path("parameters") / Path("ref_msa"))
-    if not os.path.exists(Path(working_directory) / Path("tmp_files")):
-        os.makedirs(Path(working_directory) / Path("tmp_files"))
-    if not os.path.exists(Path(working_directory) / Path("results")):
-        os.makedirs(Path(working_directory) / Path("results"))
-    # end verbatim from pyNCBIminer_00_main.py
+
+    # Make working directory
+    os.makedirs(Path(working_directory), exist_ok=True)
     
     # Iterate over loci in config
     for locus in config['loci']:
@@ -62,13 +52,21 @@ if __name__ == "__main__":
         # Retrieve BLAST parameters for this locus
         params = config['loci'][locus]['blast']
 
+        # Build working directories in PyNCBIminer format
+        locus_working_directory = working_directory / Path(params['target_region'])
+        os.makedirs(locus_working_directory / Path("parameters"), exist_ok=True)
+        os.makedirs(locus_working_directory / Path("parameters") / Path("ref_seq"), exist_ok=True)
+        os.makedirs(locus_working_directory / Path("parameters") / Path("ref_msa"), exist_ok=True)
+        os.makedirs(locus_working_directory / Path("tmp_files"), exist_ok=True)
+        os.makedirs(locus_working_directory / Path("results"), exist_ok=True)
+
         # Copy initial quaries to their expected location in the working directory
         # so pyNCBIminer can find them
         initial_queries = list(SeqIO.parse(params['initial_queries_path'], "fasta"))
-        SeqIO.write(initial_queries, Path(working_directory) / Path("parameters") / Path("initial_queries.fasta"), "fasta")
+        SeqIO.write(initial_queries, locus_working_directory / Path("parameters") / Path("initial_queries.fasta"), "fasta")
 
         # Get blast_round; near verbatim from pyNCBIminer_00_main.py
-        queries_file_list = os.listdir(Path(working_directory) / Path("parameters") / Path("ref_seq"))
+        queries_file_list = os.listdir(locus_working_directory / Path("parameters") / Path("ref_seq"))
         if len(queries_file_list) > 0:
             round_list = []
             for queries_file in queries_file_list:
@@ -81,7 +79,7 @@ if __name__ == "__main__":
 
         # Call the iterated blast function from pyNCBIminer
         iterated_blast_main(
-            wd = working_directory,
+            wd = locus_working_directory,
             organisms = organisms,
             count = entrez_count(
                 config['DEFAULT']['entrez_email'], 

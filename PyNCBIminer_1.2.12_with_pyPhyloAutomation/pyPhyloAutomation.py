@@ -89,14 +89,13 @@ if __name__ == "__main__":
                 today
                 ),
             expect = float(params['expect_value']),
-            gapcosts = '2 1',
-            #gapcosts = params['gap_costs'],
+            gapcosts = params['gap_costs'],
             word_size = int(params['word_size']),
             nucl_reward = int(params['nucl_reward']),
             nucl_penalty = int(params['nucl_penalty']),
             max_length = int(params['max_length']),
-            key_annotations = params['key_annotations'],
-            exclude_sources = params['exclude_sources'],
+            key_annotations = params['key_annotations'].split("|"), # my config file uses pipe to delimit the key annotations
+            exclude_sources = params['exclude_sources'].split("|"), # my config file uses pipe to delimit the exclude sources
             ref_number = 5, # Hard-coded in original pyNCBIminer code; could be added to config?
             date_from = config['DEFAULT']['last_check'],
             date_to = today,

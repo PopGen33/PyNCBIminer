@@ -5,6 +5,7 @@
 import os
 from datetime import date
 from pathlib import Path
+import shutil
 from configobj import ConfigObj
 import argparse
 from Bio import SeqIO
@@ -14,7 +15,9 @@ from Bio import SeqIO
 # TODO: figure out a way to submit this as a pull request to pyNCBIminer
 
 from iterated_blast import iterated_blast_main
-from my_entrez import format_entrez_query, entrez_count, entrez_summary
+from my_entrez import entrez_count
+from miner_filter import Miner_filter
+from my_filter import rename_results, combine_keep_records, put_filtered_seq_together
 
 ## pyNCBIminer imports end here
 
@@ -45,6 +48,7 @@ if __name__ == "__main__":
     # Make working directory
     os.makedirs(Path(working_directory), exist_ok=True)
     
+    # Sequence Retrieval Module
     # Iterate over loci in config
     for locus in config['loci']:
         print(f"Processing locus: {locus}")
@@ -53,7 +57,7 @@ if __name__ == "__main__":
         params = config['loci'][locus]['blast']
 
         # Build working directories in PyNCBIminer format
-        locus_working_directory = working_directory / Path(params['target_region'])
+        locus_working_directory = working_directory / Path(locus)
         os.makedirs(locus_working_directory / Path("parameters"), exist_ok=True)
         os.makedirs(locus_working_directory / Path("parameters") / Path("ref_seq"), exist_ok=True)
         os.makedirs(locus_working_directory / Path("parameters") / Path("ref_msa"), exist_ok=True)
@@ -101,4 +105,63 @@ if __name__ == "__main__":
             date_to = today,
             entrez_email = config['DEFAULT']['entrez_email'],
         )
+
+    # Superatrix Construction Module
+    # Sequence filtering; we'll byupass call_miner_filter and just make the Miner object ourselves
+    for locus in config['loci']:
+        print(f"Filtering sequences for locus: {locus}")
+        # Get filtering parameters for this locus; if not present, get default parameters
+        try:
+            params = config['loci'][locus]['filtering']
+        except KeyError:
+            params = config['DEFAULT']['filtering']
+        # Locus working directory
+        locus_working_directory = working_directory / Path(locus)
+        # if not_controlled directory exists, move to not_controlled_old (and delete old not_controlled_old if it exists)
+        not_controlled_dir = locus_working_directory / Path("results") / Path("not_controlled")
+        if (not_controlled_dir.parent.resolve() / Path("not_controlled_old")).exists():
+                shutil.rmtree(not_controlled_dir.parent.resolve() / Path("not_controlled_old"))
+        if not_controlled_dir.exists():
+            not_controlled_dir.rename(not_controlled_dir.parent.resolve() / Path("not_controlled_old"))
+
+        # Create Miner_filter object
+        my_miner_filter = Miner_filter(locus_working_directory, locus_working_directory)
+
+        # Extended segments refinement
+        if params['extended_segments_refinement'].lower() == 'true':
+            print("Extended segments refinement for locus: %s" % locus)
+            my_miner_filter.control_extension(length_ratio=0.6, 
+                                              max_subset_size=200, 
+                                              gappyness_threshold=float(params['extension_gappyness_threshold'])
+            )
+        
+        # Species-level sequence selection
+        if params['species-level_sequences_selection'].lower() == 'true':
+            print("Reducing dataset to a single sequence per species for locus: %s" % locus)
+            # Dunno what this does, but it's in the original pyNCBIminer code
+            rename_results(locus_working_directory)
+            # Name correction below uses tNRS which is a plant database from what I've read; may be able to use a more general alternative like the GBIF taxonomy API if this proves necessary
+            my_miner_filter.reduce_dataset(
+                name_correction = params['name_correction'].lower() == 'true',  # for name correction using trns (rtrns)
+                subsp = True, 
+                var = True, 
+                f = True,
+                sp = True, 
+                cf = True, 
+                aff = True, 
+                x = True,
+                consensus_value = True, # I think this is read from the "abnormal index" boolean in the GUI, but it's *really* hard to trace; mystery parameter, honestly
+                length_threshold = int(params['length_threshold']),
+                ignore_gap = True # Read from nowhere and always true?
+            )
+    # below is bit lazy, but should work so long as nothing else edits the working diretory
+    wd_list = [working_directory / Path(locus) for locus in config['loci']] 
+    combine_keep_records(wd_list)
+    put_filtered_seq_together(wd_list)    
+
+    # Finally, update the last_check date in the config file to today's date
+    print("last_check in config file updated to today's date: %s" % today)
+    config['DEFAULT']['last_check'] = today
+    config.write()
+
     

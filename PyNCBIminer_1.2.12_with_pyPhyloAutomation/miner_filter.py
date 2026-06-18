@@ -986,7 +986,8 @@ class Miner_filter:
                 command = f"mafft --add {file_abs_path} {file_ref_path} > {file_out_path}"
             
             os.system(command)
-            file_name = os.path.join(out_path, command.split(">")[-1].strip())
+            #file_name = os.path.join(out_path, command.split(">")[-1].strip()) # Old Version
+            file_name = file_out_path # New Version 2026-06; old version either never worked or something changed between when it was written and now
             record_iter = SeqIO.parse(file_name, "fasta")
             
             count = 0

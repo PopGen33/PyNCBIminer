@@ -9,6 +9,8 @@ from pathlib import Path
 import pandas as pd
 from math import floor
 from Bio import SeqIO
+import shutil
+
 from tools import get_query_accession
 
 
@@ -38,7 +40,6 @@ def add_all_queries2(wd):
         ref_msa_file = "msa_queries_1_to_%d.fasta" % len(queries_file_list)
         ref_msa_path = Path(wd) / Path("parameters") / Path("ref_msa") / Path(ref_msa_file)
         if not os.path.exists(ref_msa_path) or os.path.getsize(ref_msa_path) == 0:
-
             for n in range(2, len(queries_file_list) + 1):
                 if n == 2:
                     mafft_cmd = r"mafft --multipair --addfragments %s %s > %s" % \
@@ -46,14 +47,24 @@ def add_all_queries2(wd):
                                  Path(wd) / Path("parameters") / Path("ref_msa") / Path("msa_queries_1.fasta"),
                                  Path(wd) / Path("parameters") / Path("ref_msa") / Path("msa_queries_1_to_2.fasta"))
                 else:
-                    mafft_cmd = r"mafft --multipair --addfragments %s %s > %s" % \
-                                (Path(wd) / Path("parameters") / Path("ref_seq") / Path("queries_%d.fasta" % n),
-                                 Path(wd) / Path("parameters") / Path("ref_msa") / Path(
-                                     "msa_queries_1_to_%d.fasta" % (n - 1)),
-                                 Path(wd) / Path("parameters") / Path("ref_msa") / Path(
-                                     "msa_queries_1_to_%d.fasta" % n))
+                    # Handle there being no new queries to add to MSA; 2026-08-18
+                    prev_msas = list(SeqIO.to_dict(SeqIO.parse(Path(wd) / Path("parameters") / Path("ref_msa") / Path("msa_queries_1_to_%d.fasta" % (n - 1)), "fasta")).keys())
+                    curr_queries = list(SeqIO.to_dict(SeqIO.parse(Path(wd) / Path("parameters") / Path("ref_seq") / Path("queries_%d.fasta" % n), "fasta")).keys())
+                    for accession in curr_queries:
+                        if accession in prev_msas:
+                            curr_queries.remove(accession)
+                    if len(curr_queries) == 0:
+                        # if no curr_queries left, just run mafft on previous MSA to generate the new MSA with the same sequences but different name
+                        # This is a bit wasteful...
+                        mafft_cmd = r"mafft --auto %s > %s" % \
+                                (Path(wd) / Path("parameters") / Path("ref_msa") / Path("msa_queries_1_to_%d.fasta" % (n - 1)),
+                                 Path(wd) / Path("parameters") / Path("ref_msa") / Path("msa_queries_1_to_%d.fasta" % n))
+                    else:
+                        mafft_cmd = r"mafft --multipair --addfragments %s %s > %s" % \
+                                    (Path(wd) / Path("parameters") / Path("ref_seq") / Path("queries_%d.fasta" % n),
+                                    Path(wd) / Path("parameters") / Path("ref_msa") / Path("msa_queries_1_to_%d.fasta" % (n - 1)),
+                                    Path(wd) / Path("parameters") / Path("ref_msa") / Path("msa_queries_1_to_%d.fasta" % n))
                 os.system(mafft_cmd)
-
 
     else:
         ref_msa_file = "msa_queries_1.fasta"

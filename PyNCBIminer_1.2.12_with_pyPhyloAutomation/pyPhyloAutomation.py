@@ -40,6 +40,7 @@ if __name__ == "__main__":
     # TODO: Write the configspec file so that the config file can be validated
 
     # get today's date
+    #today = '2015-01-01' # TESTING ~*~*~*~*~*~*~*~
     today = date.today().strftime('%Y-%m-%d')
 
     # get organisms list from config
@@ -72,17 +73,20 @@ if __name__ == "__main__":
         initial_queries = list(SeqIO.parse(blast_params['initial_queries_path'], "fasta"))
         SeqIO.write(initial_queries, locus_working_directory / Path("parameters") / Path("initial_queries.fasta"), "fasta")
 
-        # Get blast_round; near verbatim from pyNCBIminer_00_main.py
+        # Modified from pyNCBIminer_00_main.py
+        # The original code was to finish runs that hadn't completed
+        # I'm abusing it a bit to run *new* BLAST rounds after iterative BLAST has already stopped
+        # by passing a high blast_round number than was run. This does mean that BLAST runs will accumulate over 
+        # time. May have to add some cleanup for that
         queries_file_list = os.listdir(locus_working_directory / Path("parameters") / Path("ref_seq"))
         if len(queries_file_list) > 0:
             round_list = []
             for queries_file in queries_file_list:
                 round_list.append(int(Path(queries_file).stem.split("_")[-1]))
-            round_list.sort()
-            blast_round = round_list[-1]
+            blast_round = max(round_list) + 1 # add one more round than is present in the queries file list to force a new round of BLAST
         else:
             blast_round = 1
-        # end verbatim from pyNCBIminer_00_main.py
+        # end modified from pyNCBIminer_00_main.py
 
         # Call the iterated blast function from pyNCBIminer
         iterated_blast_main(
@@ -107,6 +111,7 @@ if __name__ == "__main__":
             date_from = config['DEFAULT']['last_check'],
             date_to = today,
             entrez_email = config['DEFAULT']['entrez_email'],
+            blast_round = blast_round
         )
 
     # Superatrix Construction Module
@@ -131,13 +136,13 @@ if __name__ == "__main__":
         # TODO: Find a better way to do this; this doesn't entirely work...
         # Check for the 'history_backup' directory; if it exists, get the most recent directory and blast_results_checked_seq_info_modified.txt
         # Compare that to the copy in the locus directory; if they are the same, skip the filtering step (blast results haven't changed)
-        if os.path.exists(locus_working_directory / Path("results") / Path("history_backup")) and len(os.listdir(locus_working_directory / Path("results") / Path("history_backup"))) > 0:
-            most_recent_backup = max((locus_working_directory / Path("results") / Path("history_backup")).iterdir(), key=os.path.getmtime)
-            last_blast_results_checked_seq_info = most_recent_backup / Path("blast_results_checked_seq_info_modified.txt")
-            current_blast_results_checked_seq_info = locus_working_directory / Path("results") / Path("blast_results_checked_seq_info_modified.txt")
-            if filecmp.cmp(last_blast_results_checked_seq_info, current_blast_results_checked_seq_info, shallow=False):
-                print(f"No changes in blast results for locus {locus} since last filtering; skipping filtering step")
-                continue
+        # if os.path.exists(locus_working_directory / Path("results") / Path("history_backup")) and len(os.listdir(locus_working_directory / Path("results") / Path("history_backup"))) > 0:
+        #     most_recent_backup = max((locus_working_directory / Path("results") / Path("history_backup")).iterdir(), key=os.path.getmtime)
+        #     last_blast_results_checked_seq_info = most_recent_backup / Path("blast_results_checked_seq_info_modified.txt")
+        #     current_blast_results_checked_seq_info = locus_working_directory / Path("results") / Path("blast_results_checked_seq_info_modified.txt")
+        #     if filecmp.cmp(last_blast_results_checked_seq_info, current_blast_results_checked_seq_info, shallow=False):
+        #         print(f"No changes in blast results for locus {locus} since last filtering; skipping filtering step")
+        #         continue
 
         # Create Miner_filter object
         my_miner_filter = Miner_filter(locus_working_directory, locus_working_directory)

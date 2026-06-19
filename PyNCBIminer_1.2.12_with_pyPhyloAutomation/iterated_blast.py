@@ -10,6 +10,7 @@ from pathlib import Path
 import os
 from math import ceil
 from Bio import SeqIO
+import shutil
 
 from tools import print_line, get_query_accession
 from my_entrez import format_entrez_query
@@ -80,7 +81,7 @@ def iterated_blast_main(wd, organisms, count,
                         nucl_reward, nucl_penalty, max_length,
                         key_annotations, exclude_sources, ref_number, date_from, date_to, entrez_email,
                         blast_round=1):
-    blast_round = 1  # to correct error in combining blast results.
+    # blast_round = 1  # to correct error in combining blast results. 2026-06-18: Removed so I can force a new round of BLAST
     print("Start BLAST iteration...")
     entrez_query = format_entrez_query(organisms=organisms, date_from=date_from, date_to=date_to)
     alignments = ceil(count * 1.05)
@@ -91,7 +92,7 @@ def iterated_blast_main(wd, organisms, count,
         blast_results = pd.read_table(Path(wd) / Path("results") / Path("blast_results.txt"), sep='\t', engine='python')
         source_list = blast_results["Source"].value_counts()
         total_seq_num = 0
-        for i in range(blast_round - 1):
+        for i in range(blast_round): # 2026-06-18: this used to be blast_round - 1; so this never ran???
             if i + 1 in source_list.index:
                 seq_num = source_list.loc[i + 1]
             else:
@@ -166,6 +167,10 @@ def iterated_blast_main(wd, organisms, count,
             """
         else:
             query_path = Path(wd) / Path("parameters") / Path("ref_seq") / Path("queries_%d.fasta" % blast_round)
+            # 2026-06-18: if this query_path doesn't exist, use the previous round's query_path to run BLAST
+            if not os.path.exists(Path(query_path)) or os.path.getsize(Path(query_path)) == 0:
+                print("Cannot find queries_%d.fasta, use queries_%d.fasta to run BLAST." % (blast_round, blast_round - 1))
+                shutil.copy(Path(wd) / Path("parameters") / Path("ref_seq") / Path("queries_%d.fasta" % (blast_round - 1)), query_path)
             """
             query_path = Path(wd) / Path("parameters") / Path("ref_msa") / Path("msa_queries_%d.fasta" % blast_round)
             if not os.path.exists(Path(query_path)) or os.path.getsize(Path(query_path)) == 0:
@@ -191,6 +196,7 @@ def iterated_blast_main(wd, organisms, count,
             sum_table.loc[i, "Sequence"] = str(queries[key].seq.upper())
             sum_table.loc[i, "Sequence_length"] = len(sum_table.loc[i, "Sequence"])
             sum_table.loc[i, "blast_round"] = blast_round
+        sum_table.drop_duplicates(inplace=True) # 2026-06-18: Protection against duplicates; this is an issue I introduced, unfortunately
         if not os.path.exists(Path(wd) / Path("parameters") / Path("all_queries_info.txt")):
             sum_table.to_csv(Path(wd) / Path("parameters") / Path("all_queries_info.txt"), index=False, sep="\t")
             print("Queries information is saved in all_queries_info.txt.")
@@ -229,11 +235,16 @@ def iterated_blast_main(wd, organisms, count,
 
         # check if the iteration should stop
         # if blast_count > count * 1.1:
-        if blast_count > count * 1.2:
-            print("Total sequences number is greater than Entrez search results number. Stop BLAST iteration.")
-            break
-        if blast_count_new1 < 3 and last_new < 3:
-            print("Cannot find more than 2 correct new sequences. Stop BLAST iteration.")
+        # if blast_count > count * 1.3:
+        #     print("Total sequences number is greater than Entrez search results number. Stop BLAST iteration.")
+        #     break
+        # if blast_count_new1 < 3 and last_new < 3:
+        #     print("Cannot find more than 2 correct new sequences. Stop BLAST iteration.")
+        #     break
+
+        # 2026-06-18: I don't understand the old logic here (above). Why stop if blast_count_new1 < 3 and last_new < 3? 
+        if blast_count_new1 < 1:
+            print("Cannot find more new sequences that pass filtering. Stop BLAST iteration.")
             break
         last_new = blast_count_new1
 

@@ -203,12 +203,12 @@ if __name__ == "__main__":
             algo = ['--globalpair']
         elif algo == 'einsi':
             algo = ['--ep', '0', '--genafpair']
-        # elif algo == 'qinsi':
-        #     # changes the base call to mafft-qinsi
-        #     pass
-        # elif algo == 'xinsi':
-        #     # changes the base call to mafft-xinsi
-        #     pass
+        elif algo == 'qinsi':
+            # changes the base call to mafft-qinsi
+            pass
+        elif algo == 'xinsi':
+            # changes the base call to mafft-xinsi
+            pass
         else:
             raise ValueError(f"Invalid MAFFT algorithm specified for locus {locus}: {mafft_params['mafft_algorithm']}. Options are: auto, linsi, ginsi, einsi")
         
@@ -216,8 +216,7 @@ if __name__ == "__main__":
         if algo in ['qinsi', 'xinsi']:
             # qinsi and xinsi are their own executable, so have to change the base call
             # These are for RNA structure-aware alignment
-            # *** This block will never run because qinsi and xinsi are commmeneted out in the section above
-            # Reason is I can't run these with mafft installed from conda; would need to compile mafft and its extensions from source
+            # *** This requires compiling MAFFT and its extensions from source and having them available in PATH
             mafft_command = [
                 f"mafft-{algo}",
                 "--maxiterate", mafft_params['max_iterations'],
@@ -231,9 +230,10 @@ if __name__ == "__main__":
                 "--thread", mafft_params['thread']
             ]
         # add --dash if specified in config; this is a MAFFT option that includes structural information for protein alignments; might be useful
-        if mafft_params['dash'].lower() == 'true':
-            mafft_command.append("--dash")
-        mafft_command.append(str(input_fasta))
+        # Only usable if alignments are amino acid sequences, so removed for now.
+        # if mafft_params['dash'].lower() == 'true':
+        #     mafft_command.append("--dash")
+        # mafft_command.append(str(input_fasta))
 
         # Run mafft
         with open(output_fasta, "w") as output_handle:

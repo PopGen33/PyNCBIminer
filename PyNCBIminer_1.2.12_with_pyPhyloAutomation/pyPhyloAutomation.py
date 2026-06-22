@@ -2,7 +2,6 @@
 # from NCBI and adding them to a phylogeny
 # NOTE: Does not work with modern pandas; needs pandas=2 (or earlier)
 
-import filecmp
 import os
 from datetime import date
 from pathlib import Path
@@ -44,7 +43,7 @@ if __name__ == "__main__":
     today = date.today().strftime('%Y-%m-%d')
 
     # get organisms list from config
-    organisms = config['DEFAULT']['organisms'].strip().split(", ") # Orginal uses splitlines(), but comma delimited in fine in the config file
+    organisms = config['DEFAULT']['organisms'].strip().split("|") # Orginal uses splitlines(), but | delimited matches the style of my config file
 
     # Get working direcotry from config and create it if it doesn't exist
     working_directory = Path(config['DEFAULT']['working_directory'])
@@ -194,7 +193,7 @@ if __name__ == "__main__":
             mafft_params = config['DEFAULT']['mafft']
 
         # Determine algorithm; put it inside a list so it unpacks nicely even if it's a single argument
-        algo = mafft_params['mafft_algorithm'].lower()
+        algo = mafft_params['mafft_algorithm'].strip().lower()
         if algo == 'auto':
             algo = ['--auto']
         elif algo == 'linsi':
@@ -229,11 +228,13 @@ if __name__ == "__main__":
                 "--maxiterate", mafft_params['max_iterations'],
                 "--thread", mafft_params['thread']
             ]
+        print(f"MAFFT command for locus {locus}: {' '.join(mafft_command)}")
         # add --dash if specified in config; this is a MAFFT option that includes structural information for protein alignments; might be useful
         # Only usable if alignments are amino acid sequences, so removed for now.
         # if mafft_params['dash'].lower() == 'true':
         #     mafft_command.append("--dash")
-        # mafft_command.append(str(input_fasta))
+
+        mafft_command.append(str(input_fasta))
 
         # Run mafft
         with open(output_fasta, "w") as output_handle:

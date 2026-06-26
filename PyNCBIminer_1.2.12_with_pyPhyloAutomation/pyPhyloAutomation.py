@@ -228,13 +228,15 @@ if __name__ == "__main__":
                 "--maxiterate", mafft_params['max_iterations'],
                 "--thread", mafft_params['thread']
             ]
-        print(f"MAFFT command for locus {locus}: {' '.join(mafft_command)}")
+
         # add --dash if specified in config; this is a MAFFT option that includes structural information for protein alignments; might be useful
         # Only usable if alignments are amino acid sequences, so removed for now.
         # if mafft_params['dash'].lower() == 'true':
         #     mafft_command.append("--dash")
 
         mafft_command.append(str(input_fasta))
+
+        print(f"MAFFT command for locus {locus}: {' '.join(mafft_command)}")
 
         # Run mafft
         with open(output_fasta, "w") as output_handle:
@@ -268,16 +270,16 @@ if __name__ == "__main__":
         elif trimal_params['method'].lower() == 'gappyout':
             trimal_command.append("-gappyout")
         elif trimal_params['method'].lower() == 'manual':
-            trimal_command. append([
+            trimal_command. extend([
             "-gt", trimal_params['gap_threshold'],
             "-st", trimal_params['minimum_average_similarity'],
             "-cons", trimal_params['minimum_percentage_conserved']
         ])
         else:
             raise ValueError(f"Invalid trimAl method specified for locus {locus}: {trimal_params['method']}. Options are: automated1, strict, strictplus, gappyout, manual")
-        trimal_command.append(['-keepheader',
-                               "-htmlout", str(working_directory / Path("filtered_seqs_aligned_trimal_html") / Path(f"{locus}.html"))],
-                               '-fasta')
+        trimal_command.extend(['-keepheader',
+                               "-htmlout", str(working_directory / Path("filtered_seqs_aligned_trimal_html") / Path(f"{locus}.html")),
+                               '-fasta'])
 
         print(f"trimAl command for locus {locus}: {' '.join(trimal_command)}")
 

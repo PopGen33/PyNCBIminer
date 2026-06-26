@@ -240,6 +240,50 @@ if __name__ == "__main__":
         with open(output_fasta, "w") as output_handle:
             subprocess.run(mafft_command, stdout=output_handle)
 
+    # Alignment trimming with trimAl
+    os.makedirs(working_directory / Path("filtered_seqs_aligned_trimmed"), exist_ok=True)
+    os.makedirs(working_directory / Path("filtered_seqs_aligned_trimal_html"), exist_ok=True)
+    for locus in config['loci']:
+        print(f"Trimming alignment for locus: {locus}")
+        input_fasta = working_directory / Path("filtered_seqs_aligned") / Path(f"{locus}.fasta")
+        output_fasta = working_directory / Path("filtered_seqs_aligned_trimmed") / Path(f"{locus}.fasta")
+
+        # Get trimming parameters for this locus; if not present, get default parameters
+        try:
+            trimal_params = config['loci'][locus]['trimal']
+        except KeyError:
+            trimal_params = config['DEFAULT']['trimal']
+
+        # Build trimAl command
+        trimal_command = ["trimal",
+                          "-in", str(input_fasta),
+                          "-out", str(output_fasta),]
+
+        if trimal_params['method'].lower() == 'automated1':
+            trimal_command.append("-automated1")
+        elif trimal_params['method'].lower() == 'strict':
+            trimal_command.append("-strict")
+        elif trimal_params['method'].lower() == 'strictplus':
+            trimal_command.append("-strictplus")
+        elif trimal_params['method'].lower() == 'gappyout':
+            trimal_command.append("-gappyout")
+        elif trimal_params['method'].lower() == 'manual':
+            trimal_command. append([
+            "-gt", trimal_params['gap_threshold'],
+            "-st", trimal_params['minimum_average_similarity'],
+            "-cons", trimal_params['minimum_percentage_conserved']
+        ])
+        else:
+            raise ValueError(f"Invalid trimAl method specified for locus {locus}: {trimal_params['method']}. Options are: automated1, strict, strictplus, gappyout, manual")
+        trimal_command.append(['-keepheader',
+                               "-htmlout", str(working_directory / Path("filtered_seqs_aligned_trimal_html") / Path(f"{locus}.html"))],
+                               '-fasta')
+
+        print(f"trimAl command for locus {locus}: {' '.join(trimal_command)}")
+
+        # Run trimAl
+        subprocess.run(trimal_command)
+
 
     # Finally, update the last_check date in the config file to today's date
     print("last_check in config file updated to today's date: %s" % today)
